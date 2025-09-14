@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +30,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.todoapp.ViewModel.TaskViewModel
+import com.example.todoapp.ViewModel.CompletionFilter
 import com.example.todoapp.ui.theme.TodoAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -52,11 +55,16 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun TaskScreen(viewModel: TaskViewModel) {
     val tasks by viewModel.tasks.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val completionFilter by viewModel.completionFilter.collectAsState()
+    val priorityFilters by viewModel.priorityFilters.collectAsState()
+
     var newTitleText by remember { mutableStateOf("") }
     var newDescriptionText by remember { mutableStateOf("") }
     var newDueDateText by remember { mutableStateOf("") }
     var newPriority by remember { mutableStateOf(Priority.MEDIUM) }
     var editingTask by remember { mutableStateOf<Task?>(null) }
+    var showFilters by remember { mutableStateOf(false) }
 
     val isTitleValid = newTitleText.isNotBlank()
     val isFormValid = isTitleValid
@@ -109,6 +117,124 @@ fun TaskScreen(viewModel: TaskViewModel) {
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                         textAlign = TextAlign.Center
                     )
+                }
+            }
+
+            // フィルター・検索UI
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // 検索バー
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { viewModel.updateSearchQuery(it) },
+                        label = { Text("タスクを検索") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = "検索")
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                    Icon(Icons.Default.Clear, contentDescription = "クリア")
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // フィルターの表示/非表示切り替えボタン
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "フィルター",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row {
+                            TextButton(onClick = { viewModel.clearAllFilters() }) {
+                                Text("リセット")
+                            }
+                            TextButton(onClick = { showFilters = !showFilters }) {
+                                Text(if (showFilters) "非表示" else "表示")
+                            }
+                        }
+                    }
+
+                    // フィルターセクション
+                    if (showFilters) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 完了状態フィルター
+                        Text(
+                            text = "完了状態",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CompletionFilter.entries.forEach { filter ->
+                                FilterChip(
+                                    onClick = { viewModel.updateCompletionFilter(filter) },
+                                    label = {
+                                        Text(
+                                            when (filter) {
+                                                CompletionFilter.ALL -> "すべて"
+                                                CompletionFilter.COMPLETED -> "完了済み"
+                                                CompletionFilter.NOT_COMPLETED -> "未完了"
+                                            }
+                                        )
+                                    },
+                                    selected = completionFilter == filter
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // 優先度フィルター
+                        Text(
+                            text = "優先度（複数選択可）",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Priority.entries.forEach { priority ->
+                                FilterChip(
+                                    onClick = { viewModel.togglePriorityFilter(priority) },
+                                    label = {
+                                        Text(
+                                            when (priority) {
+                                                Priority.HIGH -> "高"
+                                                Priority.MEDIUM -> "中"
+                                                Priority.LOW -> "低"
+                                            }
+                                        )
+                                    },
+                                    selected = priorityFilters.contains(priority)
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -244,7 +370,7 @@ fun TaskScreen(viewModel: TaskViewModel) {
                             if (isFormValid) {
                                 viewModel.addTask(
                                     newTitleText.trim(),
-                                    newDescriptionText.takeIf { it.isNotBlank() } ?: "",
+                                    newDescriptionText.takeIf { it.isNotBlank() },
                                     newDueDateText.takeIf { it.isNotBlank() },
                                     newPriority
                                 )
