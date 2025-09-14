@@ -19,8 +19,11 @@ abstract class TaskDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     TaskDatabase::class.java,
-                    "task_database"
-                ).build()
+                    "task_database_v2"  // データベース名を変更
+                )
+                .fallbackToDestructiveMigration()
+                .fallbackToDestructiveMigrationOnDowngrade()
+                .build()
                 INSTANCE = instance
                 instance
             }

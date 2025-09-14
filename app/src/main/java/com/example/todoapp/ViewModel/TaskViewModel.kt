@@ -1,4 +1,4 @@
-package com.example.todoapp
+package com.example.todoapp.ViewModel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -7,6 +7,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import com.example.todoapp.Task
+import com.example.todoapp.Priority
+import com.example.todoapp.TaskDao
+import com.example.todoapp.TaskDatabase
 
 class TaskViewModel(application: Application) : AndroidViewModel(application) {
     private val taskDao: TaskDao
@@ -31,10 +35,16 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // F-02: タスク作成
-    fun addTask(title: String) {
+    fun addTask(title: String, description: String = "", dueDate: String? = null, priority: Priority = Priority.MEDIUM) {
         viewModelScope.launch(Dispatchers.IO) {
             if (title.isNotBlank()) {
-                taskDao.insertTask(Task(title = title))
+                val task = Task(
+                    title = title,
+                    description = description.takeIf { it.isNotBlank() },
+                    dueDate = dueDate,
+                    priority = priority
+                )
+                taskDao.insertTask(task)
                 loadTasks()
             }
         }
@@ -49,12 +59,23 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun editTask(task: Task, newTitle: String) {
+    fun editTask(
+        task: Task,
+        newTitle: String,
+        newDescription: String?,
+        newDueDate: String?,
+        newPriority: Priority
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             if (newTitle.isNotBlank()) {
-                val updatedTask = task.copy(title = newTitle)
+                val updatedTask = task.copy(
+                    title = newTitle,
+                    description = newDescription,
+                    dueDate = newDueDate,
+                    priority = newPriority
+                )
                 taskDao.updateTask(updatedTask)
-                loadTasks() // 更新後にリストを再読み込み
+                loadTasks()
             }
         }
     }
